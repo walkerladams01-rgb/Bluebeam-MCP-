@@ -505,7 +505,7 @@ def register_read_tools(mcp: FastMCP) -> None:
         """Takeoff quantities from Bluebeam measurement markups: areas (sf), lengths/perimeters (ft),
         counts and volumes (area x depth), grouped and totalled. Read-only.
 
-        group_by: any of subject (default), layer, page, label, author, color, kind, or a custom column
+        group_by: any of subject (default), layer, page, label, author, color (outline), fill_color, depth, kind, or a custom column
         name; e.g. ["subject", "layer"]. pages/layer/subject narrow the markups considered (1-based pages).
         Quantities are Bluebeam's own values (the text Revu shows, so cutouts and arcs are right) whenever
         readable in the measurement's unit; otherwise recomputed from geometry and the /Measure scale. The

@@ -49,7 +49,7 @@ cross-check, and any markup where the two disagree (cutouts, arcs, edited captio
 
 | | |
 |---|---|
-| **Takeoff** | Areas, lengths, perimeters, counts and volumes from Bluebeam measurement markups, grouped by subject, layer, page, author, color or custom column, with per-page scales and mismatch warnings |
+| **Takeoff** | Areas, lengths, perimeters, counts and volumes from Bluebeam measurement markups, grouped by subject, layer, page, author, outline or fill color, depth, or custom column, with per-page scales and mismatch warnings |
 | **Markups List export** | CSV, Excel (with a Takeoff sheet) or JSON with Revu's columns: subject, page label, author, date, status, layer, comments, measurement, depth, color, custom columns |
 | **See the drawing** | Render a sheet, a region or a single markup to an image the model can look at; pixel-to-point mapping included, rotated sheets handled |
 | **Find things** | Sheet index from page labels, bookmarks and title blocks; text search with page labels and locations; page text by block or word |

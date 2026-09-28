@@ -383,3 +383,19 @@ def test_rows_name_markups_and_total_distinctly(synth):
     inlets = next(r for r in s["rows"] if r["group"]["subject"] == "Inlet Count")
     assert inlets["kind"] == "count" and inlets["markups"] == 1 and inlets["total"] == 3   # one group of 3 symbols
     assert all("count" not in r for r in s["rows"] + s["totals"])
+
+
+def test_group_by_fill_color_and_depth(tmp_path):
+    from tests import bb_synth
+    from bluebeam import markups_read, takeoff as tk
+    import pymupdf as _pm
+    pdf = str(tmp_path / "t.pdf")
+    bb_synth.build_takeoff_pdf(pdf)
+    doc = _pm.open(pdf)
+    mks = markups_read.parse_markups(doc)
+    doc.close()
+    by_depth = tk.summarize(mks, ["depth"])
+    groups = {r["group"]["depth"] for r in by_depth["rows"] if r["kind"] == "area"}
+    assert "6 in" in groups and "(none)" in groups
+    by_fill = tk.summarize(mks, ["fill_color"])
+    assert all("fill_color" in r["group"] for r in by_fill["rows"])

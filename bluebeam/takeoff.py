@@ -21,7 +21,7 @@ Point = Sequence[float]
 
 MISMATCH_TOLERANCE = 0.005          # computed vs Bluebeam's /Contents, relative
 KIND_ORDER = ("area", "volume", "perimeter", "length", "count", "angle")
-GROUP_FIELDS = ("subject", "layer", "page", "label", "author", "color", "kind")
+GROUP_FIELDS = ("subject", "layer", "page", "label", "author", "color", "fill_color", "depth", "kind")
 _LEN_TO_FT = {"ft": 1.0, "in": 1 / 12, "yd": 3.0, "mi": 5280.0, "m": 3.280839895,
               "cm": 0.03280839895, "mm": 0.003280839895, "km": 3280.839895}
 
@@ -181,6 +181,9 @@ def _quantities(mk: "Markup") -> list[tuple[str, float, str]]:
 def _group_value(mk: "Markup", field: str) -> Any:
     if field == "kind":
         v = mk.measurement["kind"] if mk.measurement else ""
+    elif field == "depth":
+        me = mk.measurement or {}
+        v = f"{me['depth']:g} {me.get('depth_unit') or ''}".strip() if me.get("depth") else ""
     elif field in GROUP_FIELDS:
         v = getattr(mk, field)
     else:
