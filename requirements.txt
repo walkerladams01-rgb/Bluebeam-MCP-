@@ -1,0 +1,4 @@
+mcp>=1.10,<2
+pymupdf>=1.25
+pywin32>=306
+openpyxl>=3.1

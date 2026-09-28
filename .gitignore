@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# write backups the server makes beside edited PDFs
+.bb_backups/
+
+# never commit drawings
+*.pdf
