@@ -113,7 +113,7 @@ def takeoff_summary(path: str, group_by: Union[list[str], str, None] = None, pag
 
 EXPORT_COLUMNS = ["Subject", "Page", "Page Label", "Author", "Date", "Status", "Layer", "Comments",
                   "Measurement", "Unit", "Length", "Area", "Volume", "Volume Unit", "Count", "Depth",
-                  "Label", "Color", "Type", "Id", "Reply To"]
+                  "Label", "Color", "Fill Color", "Type", "Id", "Reply To"]
 
 
 def _export_row(m: mr.Markup) -> dict[str, Any]:
@@ -131,9 +131,24 @@ def _export_row(m: mr.Markup) -> dict[str, Any]:
         "Volume Unit": (me.get("volume_unit") or "") if counted and me.get("volume") is not None else "",
         "Count": me["count"] if counted and me["kind"] == "count" else "",
         "Depth": f"{me['depth']:g} {me.get('depth_unit') or ''}".strip() if counted and me.get("depth") is not None else "",
-        "Label": m.label, "Color": m.color or "", "Type": m.pdf_type, "Id": m.id, "Reply To": m.reply_to_id or ""}
+        "Label": m.label, "Color": m.color or "", "Fill Color": m.fill_color or "", "Type": m.pdf_type, "Id": m.id, "Reply To": m.reply_to_id or ""}
     row.update(m.custom_columns)
     return row
+
+
+def _swatch(cells) -> None:
+    """Shade cells holding '#RRGGBB' in that colour (white text on dark colours)."""
+    from openpyxl.styles import Font, PatternFill
+    for cell in cells:
+        v = str(cell.value or "")
+        if len(v) == 7 and v.startswith("#"):
+            try:
+                r, g, b = (int(v[i:i + 2], 16) for i in (1, 3, 5))
+            except ValueError:
+                continue
+            cell.fill = PatternFill("solid", fgColor=v[1:].upper())
+            if 0.299 * r + 0.587 * g + 0.114 * b < 128:
+                cell.font = Font(color="FFFFFF")
 
 
 def _write_xlsx(out: Path, columns: list[str], rows: list[dict], summary: dict) -> None:
@@ -157,9 +172,14 @@ def _write_xlsx(out: Path, columns: list[str], rows: list[dict], summary: dict) 
         ws.column_dimensions[get_column_letter(i)].width = max(8, min(longest + 2, 60))
     for cell in ws[get_column_letter(columns.index("Comments") + 1)][1:]:
         cell.alignment = Alignment(wrap_text=True, vertical="top")
+    for name in ("Color", "Fill Color"):
+        _swatch(ws[get_column_letter(columns.index(name) + 1)][1:])
+    for name in ("Length", "Area", "Volume"):
+        for cell in ws[get_column_letter(columns.index(name) + 1)][1:]:
+            cell.number_format = "#,##0.00"
 
     tk = wb.create_sheet("Takeoff")
-    group_cols = [g.title() for g in summary["group_by"]]
+    group_cols = [g.replace("_", " ").title() for g in summary["group_by"]]
     tk.append(group_cols + ["Kind", "Markups", "Total", "Unit", "Pages"])
     for r in summary["rows"]:
         tk.append([r["group"][g] for g in summary["group_by"]] + [r["kind"], r["markups"], r["total"], r["unit"],
@@ -174,13 +194,18 @@ def _write_xlsx(out: Path, columns: list[str], rows: list[dict], summary: dict) 
     for cell in tk[1]:
         cell.font, cell.fill = Font(bold=True), head
     tk.freeze_panes = "A2"
+    for i, g in enumerate(summary["group_by"], 1):
+        if g in ("color", "fill_color"):
+            _swatch(tk[get_column_letter(i)][1:])
+    for cell in tk[get_column_letter(len(group_cols) + 3)][1:]:
+        cell.number_format = "#,##0.00"
     for i in range(1, len(group_cols) + 6):
         tk.column_dimensions[get_column_letter(i)].width = 28 if i <= len(group_cols) else 14
     wb.save(str(out))
 
 
 def export_markups(path: str, output_path: str, format: str = "csv", pages: Pages = None,
-                   overwrite: bool = False) -> dict:
+                   overwrite: bool = False, group_by: Union[list[str], str, None] = None) -> dict:
     fmt = (format or "").lower()
     if fmt not in ("csv", "xlsx", "json"):
         raise core.DocumentError("format must be 'csv', 'xlsx' or 'json'")
@@ -197,7 +222,7 @@ def export_markups(path: str, output_path: str, format: str = "csv", pages: Page
     with core.open_readonly(path) as doc:
         idx = core.parse_page_range(pages, doc.page_count)
         mks = mr.parse_markups(doc, idx, include_replies=True)
-    summary = takeoff.summarize(mks, ["subject"])
+    summary = takeoff.summarize(mks, _list(group_by) or ["subject"])
     custom = list(dict.fromkeys(name for m in mks for name in m.custom_columns))
     columns = EXPORT_COLUMNS + custom
     rows = [_export_row(m) for m in mks]
@@ -521,17 +546,18 @@ def register_read_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(annotations=export_ann, structured_output=False)
     def bb_export_markups(path: str, output_path: str, format: str = "csv", pages: Pages = None,
-                          overwrite: bool = False) -> str:
+                          overwrite: bool = False, group_by: Union[list[str], str, None] = None) -> str:
         """Export the markups list to a spreadsheet-friendly file (the PDF is not touched).
 
         format: "csv", "xlsx" (Markups sheet with header, frozen row, filter, plus a Takeoff sheet) or "json".
         output_path must end in the same extension and its folder must exist; an existing file is refused
         unless overwrite=True. Columns follow Revu's Markups List (Subject, Page, Page Label, Author, Date,
         Status, Layer, Comments, Measurement, Unit, Length, Area, Volume, Volume Unit, Count, Depth, Label,
-        Color, Type, Id, Reply To) plus custom columns; replies are included. Count symbols after the first of
-        a group leave the measurement cells blank so column sums stay right.
+        Color, Fill Color, Type, Id, Reply To) plus custom columns; replies are included. Count symbols after
+        the first of a group leave the measurement cells blank so column sums stay right. group_by sets the
+        Takeoff sheet's grouping (same fields as bb_takeoff_summary; default subject).
         Returns {output_path, format, rows, columns, sheets}."""
-        return _j(export_markups(path, output_path, format, pages, overwrite))
+        return _j(export_markups(path, output_path, format, pages, overwrite, group_by))
 
     @mcp.tool(annotations=ro, structured_output=False)
     def bb_search_text(path: str, query: str, pages: Pages = None, case_sensitive: bool = False,

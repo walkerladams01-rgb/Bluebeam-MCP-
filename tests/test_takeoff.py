@@ -399,3 +399,16 @@ def test_group_by_fill_color_and_depth(tmp_path):
     assert "6 in" in groups and "(none)" in groups
     by_fill = tk.summarize(mks, ["fill_color"])
     assert all("fill_color" in r["group"] for r in by_fill["rows"])
+
+
+def test_export_xlsx_groups_and_fill_column(tmp_path):
+    from openpyxl import load_workbook
+    from tests import bb_synth
+    from bluebeam.tools_read import export_markups
+    pdf = str(tmp_path / "t.pdf")
+    bb_synth.build_takeoff_pdf(pdf)
+    out = str(tmp_path / "t.xlsx")
+    export_markups(pdf, out, "xlsx", group_by=["fill_color", "depth"])
+    wb = load_workbook(out)
+    assert "Fill Color" in [c.value for c in wb["Markups"][1]]
+    assert [c.value for c in wb["Takeoff"][1]][:3] == ["Fill Color", "Depth", "Kind"]
