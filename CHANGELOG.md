@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to this project. Dates are when the change reached `main`; the Sketch to Scale fix merged in #1.
+All notable changes to this project. Dates are when the change reached `main`.
 
 ## Unreleased
 
@@ -18,8 +18,7 @@ All notable changes to this project. Dates are when the change reached `main`; t
   `...Dimension` intent, so they were left out of `bb_takeoff_summary`, `bb_list_markups` and the
   exports with no warning. On a real grading plan this dropped 19 of 25 measurements (29,344.04 sf).
   Any markup with a `/Measure` scale and `/MeasurementTypes` now counts, classified by those bits;
-  Cloud+, callouts, typewriter text and arrows stay out.
-
+  Cloud+, callouts, typewriter text and arrows stay out (#1).
 - Tests no longer leave stray `C:\Windows\...` files in the working folder off Windows (the
   protected-folder tests run only on Windows).
 
