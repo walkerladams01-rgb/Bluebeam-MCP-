@@ -20,10 +20,14 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 import pymupdf
-import pythoncom
-import pywintypes
-import win32api
-import win32com.client
+
+try:  # pywin32 exists only on Windows; without it the PDF tools still work and these tools say so
+    import pythoncom
+    import pywintypes
+    import win32api
+    import win32com.client
+except ImportError:
+    pythoncom = pywintypes = win32api = win32com = None
 
 from bluebeam import core
 from bluebeam.core import DocumentError, NotAvailable, log
@@ -31,6 +35,9 @@ from bluebeam.core import DocumentError, NotAvailable, log
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
 _INSTALL_ROOT = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Bluebeam Software" / "Bluebeam Revu"
 _COM_TIMEOUT = 20  # seconds a COM call may take before the tool gives up
+
+_NO_WIN32 = ("Talking to Bluebeam Revu needs Windows with pywin32 installed; this machine has neither, "
+             "so only the PDF tools (takeoff, markups, pages) are available here.")
 
 _MCP_NOTE = ("Bluebeam's own MCP server ships with Revu 21.9+; it needs a Bluebeam Max subscription and "
              "Revu > Preferences > Admin > MCP > MCP Enabled. If enabled, register it in Claude Code directly.")
@@ -134,6 +141,8 @@ def open_in_revu(path: str, mode: str = "edit") -> dict:
     if mode not in ("edit", "view"):
         raise DocumentError("mode must be 'edit' or 'view'")
     p = core.check_pdf_path(path)
+    if pythoncom is None:
+        raise NotAvailable(_NO_WIN32)
     page_count = _page_count(p)  # also proves the file is a readable PDF before Revu sees it
     method = "EditDocument" if mode == "edit" else "ViewDocument"
     _call_launcher(lambda launcher: getattr(launcher, method)(str(p), ""))  # varProgID is required
@@ -243,6 +252,11 @@ def _official_mcp_status(revu_dir: Optional[Path]) -> dict:
 
 def revu_status() -> dict:
     """Snapshot of Revu and its optional scripting surfaces. Caches nothing; never starts Revu."""
+    if pythoncom is None:
+        return {"revu_running": False, "revu_pid": None, "revu_exe": None, "revu_version": None,
+                "active_tab": "", "launcher_com_ok": False,
+                "scriptengine": {"present": False, "licensed": None, "message": ""},
+                "official_mcp": {"present": False, "path": None, "note": _MCP_NOTE}, "note": _NO_WIN32}
     pid, exe = _revu_process()
     exe_path = Path(exe) if exe else _installed_revu_exe()
     revu_dir = exe_path.parent if exe_path else None

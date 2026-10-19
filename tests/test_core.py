@@ -1,4 +1,5 @@
 import os
+import sys
 
 import pymupdf
 import pytest
@@ -120,6 +121,7 @@ def test_revu_active_tab_counts_as_locked(sample_pdf, monkeypatch):
     assert not core.is_locked(core.Path(sample_pdf))
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="the protected folders are Windows paths")
 def test_refuses_protected_dirs(sample_pdf):
     with pytest.raises(DocumentError):
         with core.open_for_write(sample_pdf, r"C:\Windows\x.pdf"):

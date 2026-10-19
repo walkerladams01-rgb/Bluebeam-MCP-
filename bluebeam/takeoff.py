@@ -224,7 +224,8 @@ def summarize(markups: Sequence["Markup"], group_by: Union[str, Iterable[str]] =
                 -- an area markup with a depth adds a volume row (volume_unverified: true)
       totals  [{kind, unit, markups, total}] across all rows
       scales  [{page, scale, units_per_point, markups}] distinct scales per page
-      warnings unscaled measurements, several scales on one page, and Bluebeam's own /Contents value
+      warnings unscaled measurements, scaled markups of an unknown type (left out of the totals),
+               several scales on one page, and Bluebeam's own /Contents value
                differing from the geometry by > 0.5% (e.g. area cutouts or arcs the geometry cannot see)
     Quantities are Bluebeam's own values (its /Contents text) whenever that is readable in the
     measurement's unit, else recomputed from geometry x scale. Members of a count group
@@ -239,8 +240,13 @@ def summarize(markups: Sequence["Markup"], group_by: Union[str, Iterable[str]] =
     mismatches: list[str] = []
     measured = 0
 
+    unknown: list[str] = []
+
     for mk in markups:
         me = mk.measurement
+        if not me and mk.unclassified_scale and not mk.is_reply:
+            unknown.append(f"{mk.subject or mk.pdf_type} p{mk.page} [{mk.id}]"
+                           + (f" '{mk.contents[:40]}'" if mk.contents else ""))
         if not me or mk.is_reply or me.get("member_of"):
             continue
         measured += 1
@@ -301,6 +307,10 @@ def summarize(markups: Sequence["Markup"], group_by: Union[str, Iterable[str]] =
     if unmeasured:
         warnings.append(f"{len(unmeasured)} measurement(s) had no readable value and are not in the "
                         "totals: " + "; ".join(unmeasured[:5]))
+    if unknown:
+        warnings.append(f"{len(unknown)} markup(s) carry a measurement scale but no measurement type this "
+                        "server recognises, so they are not in the totals; check them in Revu: "
+                        + "; ".join(unknown[:5]))
     for page, per in sorted(scales.items()):
         if len(per) > 1:
             texts = ", ".join(f"'{s['scale']}' ({s['markups']})" for s in per.values())
@@ -309,7 +319,7 @@ def summarize(markups: Sequence["Markup"], group_by: Union[str, Iterable[str]] =
     scale_rows = [s for per in sorted(scales.items()) for s in per[1].values()]
     out = {"group_by": fields, "rows": out_rows, "totals": out_totals, "scales": scale_rows,
            "warnings": _cap(warnings, warnings_cap, "warnings"), "measured": measured,
-           "skipped": len(unmeasured)}
+           "skipped": len(unmeasured) + len(unknown)}
     if any(t["kind"] == "volume" for t in out_totals):
         out["notes"] = ["volume = area x depth x V.C, taking /Depth as being in its /DepthUnit; this is unverified "
                         "against Revu, so check one volume there before relying on it"]

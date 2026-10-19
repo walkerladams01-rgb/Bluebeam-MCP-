@@ -1,8 +1,16 @@
 # Changelog
 
-All notable changes to this project. Dates are when the change reached `main`.
+All notable changes to this project. Dates are when the change reached `main`; the Sketch to Scale fix merged in #1.
 
 ## Unreleased
+
+### Added
+- **Runs without Windows.** pywin32 is now optional, so the server starts on macOS, Linux and cloud
+  containers. Every PDF tool works there; `bb_revu_status` reports that Revu is unavailable and
+  `bb_open_in_revu` refuses with the reason. CI also runs the suite on Ubuntu.
+- **Takeoff warns instead of dropping.** A markup that carries a measurement scale but has no
+  measurement type the server recognises is now listed in the takeoff `warnings` and counted in
+  `skipped`, rather than vanishing from the totals.
 
 ### Fixed
 - **Takeoff counts Revu's Sketch to Scale markups.** Markups drawn with Revu's Sketch to Scale tools
@@ -11,6 +19,9 @@ All notable changes to this project. Dates are when the change reached `main`.
   exports with no warning. On a real grading plan this dropped 19 of 25 measurements (29,344.04 sf).
   Any markup with a `/Measure` scale and `/MeasurementTypes` now counts, classified by those bits;
   Cloud+, callouts, typewriter text and arrows stay out.
+
+- Tests no longer leave stray `C:\Windows\...` files in the working folder off Windows (the
+  protected-folder tests run only on Windows).
 
 ### Known issues
 - Resizing a Sketch to Scale markup with `bb_edit_markups` does not recompute its displayed value.

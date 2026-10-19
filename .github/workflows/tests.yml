@@ -7,11 +7,15 @@ on:
 
 jobs:
   test:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [windows-latest]
         python-version: ["3.11", "3.12", "3.13"]
+        include:
+          - os: ubuntu-latest           # the PDF tools must also work without Windows and pywin32
+            python-version: "3.12"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

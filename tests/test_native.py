@@ -8,7 +8,8 @@ from unittest.mock import MagicMock
 
 import pymupdf
 import pytest
-import pywintypes
+
+pywintypes = pytest.importorskip("pywintypes", reason="Revu tools need Windows and pywin32")
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
