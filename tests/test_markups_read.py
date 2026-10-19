@@ -2,6 +2,7 @@
 import asyncio
 import csv
 import json
+import sys
 import time
 
 import pymupdf
@@ -431,6 +432,21 @@ def test_sketch_to_scale_markups_are_takeoff_quantities(tmp_path):
     assert ("Cloud+", "area") not in rows and out["warnings"] == []
 
 
+def test_scaled_markup_of_unknown_type_is_warned_not_dropped(tmp_path):
+    doc, path = _pdf(tmp_path)
+    page = doc[0]
+    S.add_area(doc, page, [(100, 100), (200, 100), (200, 200), (100, 200)], subject="Slab")
+    odd = S.add_area(doc, page, [(300, 300), (400, 300), (400, 400)], subject="Mystery Tool")
+    doc.xref_set_key(odd, "IT", "/PolygonSomethingNew")
+    doc.xref_set_key(odd, "MeasurementTypes", "null")                          # no type bits to go on
+    _save(doc, path)
+    out = tr.takeoff_summary(path)
+    assert [r["group"]["subject"] for r in out["rows"]] == ["Slab"]
+    assert out["measured"] == 1 and out["skipped"] == 1
+    (w,) = out["warnings"]
+    assert w.startswith("1 markup(s) carry a measurement scale") and "Mystery Tool p1" in w
+
+
 def test_garbage_measure_and_contents_do_not_crash(tmp_path):
     doc, path = _pdf(tmp_path)
     a = _poly(doc[0], [(0, 0), (100, 0), (100, 100)])
@@ -677,6 +693,7 @@ def test_export_json_and_pages_filter(synth1, tmp_path):
     assert full["rows"] == 13
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="the protected folders are Windows paths")
 def test_export_refuses_bad_targets(synth1, tmp_path):
     path, _ = synth1
     out = str(tmp_path / "m.csv")

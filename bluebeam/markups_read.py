@@ -378,6 +378,7 @@ class Markup:
     status: Optional[dict] = None               # {state, model, by, date}
     measurement: Optional[dict] = None
     custom_columns: dict = field(default_factory=dict)
+    unclassified_scale: bool = False            # has a /Measure scale but no measurement kind we know
 
     @property
     def kind(self) -> str:
@@ -665,8 +666,9 @@ def _build_markup(res: _Objects, page: pymupdf.Page, annot: pymupdf.Annot, d: di
         names = [c["name"] for c in defs] + [f"Column {i + 1}" for i in range(len(defs), len(data))]
         mk.custom_columns = {n: v for n, v in zip(names, data) if v != ""}
     mtypes = _num(d.get("MeasurementTypes"))
-    kind = _kind(pdf_type, intent, int(mtypes) if mtypes is not None else None,
-                 scaled=bool(res.dict_of(d.get("Measure"))))
+    scaled = bool(res.dict_of(d.get("Measure")))
+    kind = _kind(pdf_type, intent, int(mtypes) if mtypes is not None else None, scaled=scaled)
+    mk.unclassified_scale = scaled and not kind and intent not in _NOT_TAKEOFF_INTENTS
     if kind:
         me = mk.measurement = _measurement(res, d, kind, contents)
         me["computed"] = takeoff.measure_value(mk)              # geometry x scale: the cross-check

@@ -6,7 +6,7 @@ subscription.
 
 [![tests](https://github.com/walkerladams01-rgb/Bluebeam-MCP-/actions/workflows/tests.yml/badge.svg)](https://github.com/walkerladams01-rgb/Bluebeam-MCP-/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 ![MCP](https://img.shields.io/badge/MCP-stdio-8A2BE2)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -60,7 +60,8 @@ cross-check, and any markup where the two disagree (cutouts, arcs, edited captio
 
 ## Quick start
 
-Requirements: Windows, Python 3.11+. Bluebeam Revu is only needed for `bb_open_in_revu`.
+Requirements: Python 3.11+. Windows is needed only for the two Revu tools (`bb_revu_status`,
+`bb_open_in_revu`); on macOS or Linux every PDF tool works and `pip` skips pywin32.
 
 ```powershell
 git clone https://github.com/walkerladams01-rgb/Bluebeam-MCP-.git bluebeam-mcp
@@ -146,7 +147,8 @@ focuses on quantities. `bb_revu_status` tells you whether the official server is
   `volume_unverified` until then.
 - Revu itself can only be asked to open a file (`Revu.Launcher` COM); it cannot be told to close,
   save or refresh one. Reopen a file in Revu to see changes made on disk.
-- Windows only (COM and file locking); the PDF tools themselves are pure Python.
+- Talking to Revu needs Windows (COM). On macOS and Linux the PDF tools work, `bb_revu_status`
+  says Revu is unavailable, and the open-in-Revu and file-lock checks do not apply.
 
 ## Development
 
