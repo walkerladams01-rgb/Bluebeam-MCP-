@@ -463,10 +463,27 @@ _MEASURE_INTENTS = {"PolygonDimension", "PolyLineDimension", "LineDimension", "P
                     "PolyLineAngle", "PolygonVolume"}
 
 
-def _kind(pdf_type: str, intent: Optional[str], mtypes: Optional[int]) -> Optional[str]:
-    """Measurement kind from /IT + /MeasurementTypes (128 count, 129 area, 130 length, 1152 angle)."""
+_NOT_TAKEOFF_INTENTS = {"PolygonCloud", "FreeTextCallout", "FreeTextTypewriter", "LineArrow"}
+
+
+def _kind(pdf_type: str, intent: Optional[str], mtypes: Optional[int], scaled: bool = False) -> Optional[str]:
+    """Measurement kind from /IT + /MeasurementTypes (128 count, 129 area, 130 length, 1152 angle).
+
+    Other intents count only when the markup carries a /Measure scale and /MeasurementTypes, as
+    Revu's "Sketch to Scale" tools write (/IT /RectangleSketchToScale, MeasurementTypes 129): they
+    show a quantity in Revu's Markups List and belong in the takeoff. They are never counts.
+    """
     if intent not in _MEASURE_INTENTS:
-        return None
+        if not scaled or not mtypes or intent in _NOT_TAKEOFF_INTENTS:
+            return None
+        low = mtypes & ~128
+        if low & 1024:
+            return "angle"
+        if pdf_type in ("Line", "PolyLine"):
+            return "length" if low & 3 else None
+        if low & 1:
+            return "area"
+        return "perimeter" if low & 2 else None
     if intent == "PolygonCount":
         return "count"
     if intent == "PolyLineAngle":
@@ -648,7 +665,8 @@ def _build_markup(res: _Objects, page: pymupdf.Page, annot: pymupdf.Annot, d: di
         names = [c["name"] for c in defs] + [f"Column {i + 1}" for i in range(len(defs), len(data))]
         mk.custom_columns = {n: v for n, v in zip(names, data) if v != ""}
     mtypes = _num(d.get("MeasurementTypes"))
-    kind = _kind(pdf_type, intent, int(mtypes) if mtypes is not None else None)
+    kind = _kind(pdf_type, intent, int(mtypes) if mtypes is not None else None,
+                 scaled=bool(res.dict_of(d.get("Measure"))))
     if kind:
         me = mk.measurement = _measurement(res, d, kind, contents)
         me["computed"] = takeoff.measure_value(mk)              # geometry x scale: the cross-check
