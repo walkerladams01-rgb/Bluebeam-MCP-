@@ -400,6 +400,37 @@ def test_unscaled_measurement_uses_bluebeams_text(tmp_path):
     assert me["value"] == 100.0 and me["unit"] == "sf"
 
 
+def test_sketch_to_scale_markups_are_takeoff_quantities(tmp_path):
+    """Revu's Sketch to Scale tools write /IT /RectangleSketchToScale (not ...Dimension) with a
+    /Measure scale and /MeasurementTypes 129; Revu lists their area, so the takeoff must too."""
+    doc, path = _pdf(tmp_path)
+    page = doc[0]
+    rect = [(100, 100), (193.6, 100), (193.6, 150.4), (100, 150.4)]           # 93.6 x 50.4 pt
+    a = S.add_area(doc, page, rect, scale_ft_per_in=40.0, subject="Rectangle Sketch to Scale")
+    doc.xref_set_key(a, "IT", "/RectangleSketchToScale")
+    p = S.add_area(doc, page, [(300, 300), (400, 300), (400, 400)], scale_ft_per_in=40.0,
+                   subject="Polygon Sketch to Scale")
+    doc.xref_set_key(p, "IT", "/PolygonSketchToScale")
+    doc.xref_set_key(p, "MeasurementTypes", "130")                              # outline length only
+    ln = S.add_length(doc, page, [(100, 500), (300, 500)], scale_ft_per_in=40.0)
+    doc.xref_set_key(ln, "IT", "/PolyLineSketchToScale")
+    cloud = S.add_area(doc, page, [(400, 600), (500, 600), (500, 700), (400, 700)], subject="Cloud+")
+    doc.xref_set_key(cloud, "IT", "/PolygonCloud")                              # scaled, but not a takeoff
+    plain = _poly(page, [(10, 10), (50, 10), (50, 50)])                          # no /Measure at all
+    doc.xref_set_key(plain.xref, "IT", "/PolygonSketchToScale")
+    doc.xref_set_key(plain.xref, "MeasurementTypes", "129")
+    _save(doc, path)
+    with pymupdf.open(path) as doc:
+        kinds = {m.xref: m.kind for m in mr.parse_markups(doc)}
+    assert kinds[a] == "area" and kinds[p] == "perimeter" and kinds[ln] == "length"
+    assert kinds[cloud] == "" and kinds[plain.xref] == ""
+    out = tr.takeoff_summary(path)
+    rows = {(r["group"]["subject"], r["kind"]): r for r in out["rows"]}
+    sketch = rows[("Rectangle Sketch to Scale", "area")]
+    assert sketch["markups"] == 1 and sketch["total"] == pytest.approx(1456.0, abs=0.01)
+    assert ("Cloud+", "area") not in rows and out["warnings"] == []
+
+
 def test_garbage_measure_and_contents_do_not_crash(tmp_path):
     doc, path = _pdf(tmp_path)
     a = _poly(doc[0], [(0, 0), (100, 0), (100, 100)])
